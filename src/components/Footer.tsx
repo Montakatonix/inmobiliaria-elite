@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Phone, Mail, MapPin, Clock, ArrowUpRight } from 'lucide-react'
+import { Phone, Mail, MapPin, Clock, ArrowUpRight, Facebook, Instagram } from 'lucide-react'
 import { siteConfig } from '@/data/site'
 
 export function Footer() {
