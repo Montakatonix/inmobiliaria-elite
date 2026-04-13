@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-body text-brand-charcoal bg-brand-white;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  ::selection {
+    @apply bg-brand-gold/30 text-brand-navy;
+  }
+}
+
+@layer components {
+  .section-padding {
+    @apply px-5 sm:px-8 md:px-12 lg:px-20 xl:px-28;
+  }
+
+  .container-elite {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-brand-gold text-white font-medium 
+           px-7 py-3.5 rounded-sm text-sm tracking-wide uppercase
+           hover:bg-brand-gold-dark transition-all duration-300
+           focus:outline-none focus:ring-2 focus:ring-brand-gold/50 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 border-2 border-brand-navy text-brand-navy font-medium 
+           px-7 py-3.5 rounded-sm text-sm tracking-wide uppercase
+           hover:bg-brand-navy hover:text-white transition-all duration-300
+           focus:outline-none focus:ring-2 focus:ring-brand-navy/50 focus:ring-offset-2;
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 border-2 border-brand-gold text-brand-gold font-medium 
+           px-7 py-3.5 rounded-sm text-sm tracking-wide uppercase
+           hover:bg-brand-gold hover:text-white transition-all duration-300;
+  }
+
+  .heading-xl {
+    @apply font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-navy leading-tight;
+  }
+
+  .heading-lg {
+    @apply font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-navy leading-tight;
+  }
+
+  .heading-md {
+    @apply font-display text-2xl sm:text-3xl font-semibold text-brand-navy leading-snug;
+  }
+
+  .heading-sm {
+    @apply font-display text-xl sm:text-2xl font-semibold text-brand-navy leading-snug;
+  }
+
+  .text-body {
+    @apply font-body text-brand-slate leading-relaxed;
+  }
+
+  .gold-line {
+    @apply w-16 h-0.5 bg-brand-gold;
+  }
+
+  .card-elite {
+    @apply bg-white rounded-sm shadow-sm border border-gray-100 
+           hover:shadow-lg hover:border-brand-gold/20 transition-all duration-500;
+  }
+
+  .input-elite {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-sm text-brand-charcoal font-body
+           focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold/30
+           placeholder:text-gray-400 transition-all duration-300;
+  }
+
+  .textarea-elite {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-sm text-brand-charcoal font-body resize-none
+           focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold/30
+           placeholder:text-gray-400 transition-all duration-300;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f0e8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c9a84c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8943f;
+}
