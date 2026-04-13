@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, X, Phone } from 'lucide-react'
+import { Menu, X, Phone, Facebook, Instagram } from 'lucide-react'
 import { siteConfig } from '@/data/site'
 
 const navItems = [
@@ -45,6 +45,10 @@ export function Header() {
                 <Phone size={12} />
                 {siteConfig.phoneDisplay}
               </a>
+              <div className="flex items-center gap-2 ml-2">
+                <a href="https://www.facebook.com/p/%C3%89lite-Bienes-de-Patrimonio-61587822161257/" target="_blank" rel="noopener noreferrer" className="hover:text-brand-gold transition-colors"><Facebook size={14} /></a>
+                <a href="https://www.instagram.com/elitepatrimonio/" target="_blank" rel="noopener noreferrer" className="hover:text-brand-gold transition-colors"><Instagram size={14} /></a>
+              </div>
             </div>
           </div>
         </div>
