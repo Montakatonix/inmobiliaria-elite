@@ -60,6 +60,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
+            <Logo size="sm" className={`transition-colors duration-300 ${scrolled ? 'text-brand-gold' : 'text-brand-gold'}`} />
             <div className="flex flex-col">
               <span className={`font-display text-xl lg:text-2xl font-bold tracking-tight transition-colors duration-300 ${
                 scrolled ? 'text-brand-navy' : 'text-white'
