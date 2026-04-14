@@ -8,6 +8,7 @@ import { siteConfig, testimonials, featuredProperties, services } from '@/data/s
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
 import { SectionHeading } from '@/components/SectionHeading'
 import { PropertyCard } from '@/components/PropertyCard'
+import { ZoneMap } from '@/components/ZoneMap'
 import { ContactForm } from '@/components/ContactForm'
 
 export const metadata: Metadata = {
@@ -66,7 +67,7 @@ export default function HomePage() {
 
       <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite">
         <SectionHeading label="Cobertura" title="Dónde trabajamos" description="Especializados en el Levante Almeriense."/>
-        <FadeIn><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">{siteConfig.zones.map(z=><div key={z} className="text-center py-5 px-4 border border-gray-100 rounded-sm hover:border-brand-gold/40 hover:bg-brand-gold/5 transition-all group"><MapPin size={18} className="text-brand-gold mx-auto mb-2"/><span className="text-sm font-medium text-brand-charcoal">{z}</span></div>)}</div></FadeIn>
+        <ZoneMap zones={siteConfig.zones} />
       </div></div></section>
 
       <section className="relative py-20 lg:py-28"><div className="absolute inset-0"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1920&q=80" alt="Interior" className="w-full h-full object-cover"/><div className="absolute inset-0 bg-brand-navy/85"/></div>
