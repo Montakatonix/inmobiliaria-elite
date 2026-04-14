@@ -35,11 +35,17 @@ export function ContactForm({ variant = 'general', className = '' }: ContactForm
       // if (res.ok) setStatus('success')
       // else setStatus('error')
 
-      // Simulation for now
-      await new Promise((r) => setTimeout(r, 1200))
-      console.log('Form data:', Object.fromEntries(formData))
-      setStatus('success')
-      form.reset()
+      const res = await fetch('https://formspree.io/f/xpwzgwqr', {
+        method: 'POST',
+        body: formData,
+        headers: { Accept: 'application/json' },
+      })
+      if (res.ok) {
+        setStatus('success')
+        form.reset()
+      } else {
+        setStatus('error')
+      }
     } catch {
       setStatus('error')
     }
