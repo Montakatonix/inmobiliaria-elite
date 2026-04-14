@@ -35,7 +35,7 @@ export function ContactForm({ variant = 'general', className = '' }: ContactForm
       // if (res.ok) setStatus('success')
       // else setStatus('error')
 
-      const res = await fetch('https://formspree.io/f/xpwzgwqr', {
+      const res = await fetch('https://formsubmit.co/ajax/contacto@inmobiliariaelite.es', {
         method: 'POST',
         body: formData,
         headers: { Accept: 'application/json' },
