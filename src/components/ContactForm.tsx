@@ -21,24 +21,53 @@ export function ContactForm({ variant = 'general', className = '' }: ContactForm
     e.preventDefault()
     setStatus('loading')
 
-    // Simulated form submission - replace with Formspree/Resend endpoint
     const form = e.currentTarget
-    const formData = new FormData(form)
+    const fd = new FormData(form)
+    const get = (k: string) => {
+      const v = fd.get(k)
+      return typeof v === 'string' ? v.trim() : ''
+    }
+
+    // General variant has no CRM endpoint yet — keep it inert for now.
+    if (variant === 'general') {
+      setStatus('error')
+      return
+    }
+
+    // Build the CRM payload shaped for /api/lead (which forwards to the CRM).
+    const payload: Record<string, string | number> = {
+      tipo_lead: variant === 'vender' ? 'vendedor' : 'comprador',
+      nombre: get('nombre'),
+      telefono: get('telefono'),
+    }
+    const email = get('email')
+    if (email) payload.email = email
+    const mensaje = get('mensaje')
+    if (mensaje) payload.detalles_adicionales = mensaje
+
+    if (variant === 'vender') {
+      const tipo = get('tipo_venta')
+      if (tipo) payload.tipo_inmueble = tipo
+      const ubicacion = get('ubicacion')
+      if (ubicacion) payload.ubicacion = ubicacion
+      const sup = get('superficie')
+      if (sup) payload.superficie = sup
+      const hab = get('habitaciones')
+      if (hab) payload.habitaciones = hab
+    } else {
+      const tipo = get('tipo')
+      if (tipo) payload.tipo_inmueble = tipo
+      const pres = get('presupuesto')
+      if (pres) payload.presupuesto = pres
+      const zona = get('zona')
+      if (zona) payload.zona_preferida = zona
+    }
 
     try {
-      // OPTION 1: Formspree (recommended - just replace YOUR_FORM_ID)
-      // const res = await fetch('https://formspree.io/f/YOUR_FORM_ID', {
-      //   method: 'POST',
-      //   body: formData,
-      //   headers: { Accept: 'application/json' },
-      // })
-      // if (res.ok) setStatus('success')
-      // else setStatus('error')
-
-      const res = await fetch('https://formsubmit.co/ajax/contacto@inmobiliariaelite.es', {
+      const res = await fetch('/api/lead', {
         method: 'POST',
-        body: formData,
-        headers: { Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
       })
       if (res.ok) {
         setStatus('success')
