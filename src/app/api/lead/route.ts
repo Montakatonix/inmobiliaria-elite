@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   // Add optional fields based on lead type
   if (tipo_lead === 'contacto') {
     // For contacto leads: only mensaje is optional
-    copyOpt('mensaje', body.mensaje)
+    copyOpt('detalles_adicionales', body.mensaje)
   } else if (tipo_lead === 'vendedor') {
     copyOpt('tipo_inmueble', body.tipo_inmueble)
     copyOpt('ubicacion', body.ubicacion)
