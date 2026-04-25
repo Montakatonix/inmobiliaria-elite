@@ -16,7 +16,7 @@ export const runtime = 'nodejs'
 const CRM_URL = process.env.CRM_API_URL || 'https://crm.inmobiliariaelite.es/api/'
 
 type LeadPayload = {
-  tipo_lead: 'vendedor' | 'comprador'
+  tipo_lead: 'vendedor' | 'comprador' | 'contacto'
   nombre: string
   telefono: string
   email?: string
@@ -51,8 +51,8 @@ export async function POST(req: NextRequest) {
   const telefono = String(body.telefono || '').trim()
   const email = body.email ? String(body.email).trim() : undefined
 
-  if (tipo_lead !== 'vendedor' && tipo_lead !== 'comprador') {
-    return bad('tipo_lead debe ser "vendedor" o "comprador".')
+  if (tipo_lead !== 'vendedor' && tipo_lead !== 'comprador' && tipo_lead !== 'contacto') {
+    return bad('tipo_lead debe ser "vendedor", "comprador" o "contacto".')
   }
   if (!nombre) return bad('Falta el nombre.')
   if (!telefono) return bad('Falta el tel\u00e9fono.')
@@ -72,7 +72,10 @@ export async function POST(req: NextRequest) {
     ;(payload as Record<string, unknown>)[key] = v
   }
 
-  if (tipo_lead === 'vendedor') {
+  if (tipo_lead === 'contacto') {
+    // For 'contacto' leads, only mensaje is optional besides the common fields
+    copyOpt('mensaje', body.mensaje)
+  } else if (tipo_lead === 'vendedor') {
     copyOpt('tipo_inmueble', body.tipo_inmueble)
     copyOpt('ubicacion', body.ubicacion)
     copyOpt('superficie', body.superficie)
