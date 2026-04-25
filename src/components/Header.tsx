@@ -7,7 +7,6 @@ import { siteConfig } from '@/data/site'
 import { Logo } from '@/components/Logo'
 
 const navItems = [
-  { label: 'Inicio', href: '/' },
   { label: 'Comprar', href: '/comprar' },
   { label: 'Vender', href: '/vender' },
   { label: 'Servicios', href: '/servicios' },
