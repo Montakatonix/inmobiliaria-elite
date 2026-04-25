@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-
+160 Link from "next/link";
+160
 export default function Logo() {
     return (
           <Link href="/" className="hover:opacity-80 transition-opacity">
