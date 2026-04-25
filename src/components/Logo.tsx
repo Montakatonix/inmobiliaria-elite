@@ -1,16 +1,17 @@
-import Image from 'next/image'
+import Image from "next/image";
+import Link from "next/link";
 
-export function Logo({ className = '', size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sizes = { sm: { w: 28, h: 27 }, md: { w: 38, h: 36 }, lg: { w: 56, h: 53 } }
-  const { w, h } = sizes[size]
-  return (
-    <Image
-      src="/logo.png"
-      alt="\u00c9lite Bienes de Patrimonio"
-      width={w}
-      height={h}
-      className={className}
-      priority
-    />
-  )
-}
+export default function Logo() {
+    return (
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+                <Image
+                          src="/logo.png"
+                          alt="Inmobiliaria Élite"
+                          width={80}
+                          height={80}
+                          priority
+                          className="object-contain"
+                        />
+          </Link>Link>
+        );
+}</Link>
