@@ -72,8 +72,9 @@ export async function POST(req: NextRequest) {
     ;(payload as Record<string, unknown>)[key] = v
   }
 
+  // Add optional fields based on lead type
   if (tipo_lead === 'contacto') {
-    // For 'contacto' leads, only mensaje is optional besides the common fields
+    // For contacto leads: only mensaje is optional
     copyOpt('mensaje', body.mensaje)
   } else if (tipo_lead === 'vendedor') {
     copyOpt('tipo_inmueble', body.tipo_inmueble)
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     copyOpt('habitaciones', body.habitaciones)
     copyOpt('detalles_adicionales', body.detalles_adicionales)
   } else {
+    // tipo_lead === 'comprador'
     copyOpt('tipo_inmueble', body.tipo_inmueble)
     copyOpt('presupuesto', body.presupuesto)
     copyOpt('zona_preferida', body.zona_preferida)
