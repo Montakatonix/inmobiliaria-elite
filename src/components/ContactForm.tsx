@@ -28,15 +28,12 @@ export function ContactForm({ variant = 'general', className = '' }: ContactForm
       return typeof v === 'string' ? v.trim() : ''
     }
 
-    // General variant has no CRM endpoint yet — keep it inert for now.
-    if (variant === 'general') {
-      setStatus('error')
-      return
-    }
+    // Map 'general' to 'contacto' lead type
+    const tipoLead = variant === 'general' ? 'contacto' : (variant === 'vender' ? 'vendedor' : 'comprador')
 
     // Build the CRM payload shaped for /api/lead (which forwards to the CRM).
     const payload: Record<string, string | number> = {
-      tipo_lead: variant === 'vender' ? 'vendedor' : 'comprador',
+      tipo_lead: tipoLead,
       nombre: get('nombre'),
       telefono: get('telefono'),
     }
@@ -45,7 +42,10 @@ export function ContactForm({ variant = 'general', className = '' }: ContactForm
     const mensaje = get('mensaje')
     if (mensaje) payload.detalles_adicionales = mensaje
 
-    if (variant === 'vender') {
+    if (variant === 'general') {
+      // For 'contacto', only mensaje is optional (already set above if present)
+      // No additional fields needed
+    } else if (variant === 'vender') {
       const tipo = get('tipo_venta')
       if (tipo) payload.tipo_inmueble = tipo
       const ubicacion = get('ubicacion')
