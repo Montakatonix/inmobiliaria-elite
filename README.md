@@ -72,3 +72,4 @@ También puedes ejecutar sincronización manual mediante el endpoint API.
 
 **Versión**: 1.0.0  
 **Última actualización**: Abril 2024
+# Deployment trigger
