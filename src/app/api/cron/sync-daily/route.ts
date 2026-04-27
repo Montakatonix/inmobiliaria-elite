@@ -30,7 +30,6 @@ export async function GET(request: Request) {
     console.log('[Cron] Sync completed:', result)
 
     return NextResponse.json({
-      success: true,
       ...result,
       timestamp: new Date().toISOString(),
     })

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Menu, X, Phone, Facebook, Instagram } from 'lucide-react'
 import { siteConfig } from '@/data/site'
-import { Logo } from '@/components/Logo'
+import Logo from '@/components/Logo'
 
 const navItems = [
   { label: 'Comprar', href: '/comprar' },
