@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     const result = await syncProperties()
 
     return NextResponse.json({
-      success: true,
       ...result,
       timestamp: new Date().toISOString(),
     })
