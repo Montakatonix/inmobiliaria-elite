@@ -1,4 +1,4 @@
-import * as FTP from 'ftp'
+import FTP from 'ftp'
 
 export async function downloadXMLFromFTP(): Promise<string> {
   return new Promise((resolve, reject) => {
