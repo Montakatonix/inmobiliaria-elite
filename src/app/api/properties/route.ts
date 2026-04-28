@@ -10,41 +10,60 @@ function mapProperty(ad: any) {
   const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
   const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad en venta'
 
-  // Imagenes: multimedias.pictures.picture[] o multimedias.images.image[]
+  // Imagenes from multimedias
   let images: string[] = []
-  const pics = ad.multimedias?.pictures?.picture || ad.multimedias?.images?.image || ad.multimedias?.multimedia || []
-  const picList = Array.isArray(pics) ? pics : [pics]
-  images = picList.map((p: any) => p?.url || p?.src || p?.highResUrl || (typeof p === 'string' ? p : '')).filter(Boolean)
-
-  // Precio: prices.price[] o prices.amount
-  let price = 0
-  if (ad.prices?.price) {
-    const priceList = Array.isArray(ad.prices.price) ? ad.prices.price : [ad.prices.price]
-    price = Number(priceList[0]?.amount || priceList[0]?.value || priceList[0] || 0)
-  } else if (ad.prices?.amount) {
-    price = Number(ad.prices.amount)
+  const mm = ad.multimedias
+  if (mm) {
+    // Try different structures
+    const pics = mm.picture || mm.pictures?.picture || mm.image || mm.images?.image || mm.multimedia || []
+    const picList = Array.isArray(pics) ? pics : [pics]
+    images = picList.map((p: any) => {
+      if (typeof p === 'string') return p
+      return p?.url || p?.src || p?.highResUrl || p?.highResolution || p?.mediumUrl || p?.thumbnailUrl || ''
+    }).filter(Boolean)
   }
 
-  // Property details: property.rooms, property.bathrooms, property.size, property.type
-  const prop = ad.property || {}
-  const rooms = Number(prop.rooms || prop.bedrooms || prop.bedRooms || 0)
-  const bathrooms = Number(prop.bathrooms || prop.bathRooms || 0)
-  const size = Number(prop.size || prop.constructedArea || prop.area || prop.surface || 0)
-  const propertyType = prop.type || prop.typology || prop.subtype || 'Inmueble'
+  // Precio from prices
+  let price = 0
+  const pr = ad.prices
+  if (pr) {
+    const priceObj = pr.price || pr
+    if (Array.isArray(priceObj)) {
+      price = Number(priceObj[0]?.amount || priceObj[0]?.value || priceObj[0] || 0)
+    } else if (typeof priceObj === 'object') {
+      price = Number(priceObj.amount || priceObj.value || priceObj.price || 0)
+    } else {
+      price = Number(priceObj || 0)
+    }
+  }
 
-  // Ubicacion: scope o property.address
+  // Property details
+  const prop = ad.property || {}
+  const rooms = Number(prop.rooms || prop.bedrooms || prop.bedRooms || prop.numberOfRooms || 0)
+  const bathrooms = Number(prop.bathrooms || prop.bathRooms || prop.numberOfBathrooms || 0)
+  const size = Number(prop.size || prop.constructedArea || prop.area || prop.surface || prop.builtUpArea || 0)
+  
+  // Property type mapping
+  const typeMap: Record<string, string> = {
+    '0': 'Piso', '1': 'Casa', '2': 'Chalet', '3': 'Adosado', '4': 'Ático',
+    '5': 'Local', '6': 'Oficina', '7': 'Terreno', '8': 'Garaje', '9': 'Trastero',
+    '10': 'Nave', '11': 'Finca', '12': 'Edificio'
+  }
+  const rawType = String(prop.type || prop.typology || prop.subtype || '')
+  const propertyType = typeMap[rawType] || rawType || 'Inmueble'
+
+  // Location from scope
   const scope = ad.scope || {}
-  const city = scope.cityName || scope.city || prop.address?.cityName || ''
-  const zone = scope.zoneName || scope.zone || ''
-  const province = scope.provinceName || scope.province || ''
-  const location = zone ? zone + ', ' + city : city || 'Huércal-Overa'
+  const city = scope.city || scope.cityName || scope.municipality || ''
+  const zone = scope.zone || scope.zoneName || scope.neighbourhood || scope.district || ''
+  const province = scope.province || scope.provinceName || ''
+  const location = [zone, city].filter(Boolean).join(', ') || 'Huércal-Overa'
 
   return {
     id: ad.id || '',
     title,
-    description: comment,
+    description: comment.substring(0, 300),
     property_type: propertyType,
-    operation_type: ad.operations?.operation?.[0]?.type || 'sale',
     price,
     size,
     rooms,
@@ -72,32 +91,24 @@ export async function GET() {
     }
 
     const rawData = await response.json()
-    let rawAds: any[] = []
-    if (rawData?.ad) {
-      rawAds = Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]
-    } else if (Array.isArray(rawData)) {
-      rawAds = rawData
-    }
+    let rawAds: any[] = rawData?.ad ? (Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]) : (Array.isArray(rawData) ? rawData : [])
 
     const properties = rawAds.map(mapProperty)
 
-    // Debug del primer raw item
-    const debug = rawAds.length > 0 ? {
-      firstRawSample: JSON.stringify(rawAds[0]).substring(0, 2000),
-      totalRaw: rawAds.length,
-    } : null
+    // Debug: show sub-objects of first item
+    const first = rawAds[0] || {}
+    const debug = {
+      prices: JSON.stringify(first.prices || {}).substring(0, 500),
+      property: JSON.stringify(first.property || {}).substring(0, 500),
+      multimedias: JSON.stringify(first.multimedias || {}).substring(0, 500),
+      scope: JSON.stringify(first.scope || {}).substring(0, 500),
+      operations: JSON.stringify(first.operations || {}).substring(0, 500),
+      extras: JSON.stringify(first.extras || {}).substring(0, 300),
+      total: rawAds.length,
+    }
 
-    return NextResponse.json({
-      success: true,
-      properties,
-      total: properties.length,
-      debug,
-      timestamp: new Date().toISOString(),
-    })
+    return NextResponse.json({ success: true, properties, total: properties.length, debug, timestamp: new Date().toISOString() })
   } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 })
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
         }
