@@ -10,54 +10,45 @@ function mapProperty(ad: any) {
   const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
   const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad en venta'
 
-  // Imagenes from multimedias
+  // Imagenes: multimedias.pictures[] con multimediaPath
   let images: string[] = []
-  const mm = ad.multimedias
-  if (mm) {
-    // Try different structures
-    const pics = mm.picture || mm.pictures?.picture || mm.image || mm.images?.image || mm.multimedia || []
+  const pics = ad.multimedias?.pictures
+  if (pics) {
     const picList = Array.isArray(pics) ? pics : [pics]
-    images = picList.map((p: any) => {
-      if (typeof p === 'string') return p
-      return p?.url || p?.src || p?.highResUrl || p?.highResolution || p?.mediumUrl || p?.thumbnailUrl || ''
-    }).filter(Boolean)
+    images = picList.map((p: any) => p?.multimediaPath || '').filter(Boolean)
   }
 
-  // Precio from prices
+  // Precio: prices.byOperation.SALE.price
   let price = 0
   const pr = ad.prices
-  if (pr) {
-    const priceObj = pr.price || pr
-    if (Array.isArray(priceObj)) {
-      price = Number(priceObj[0]?.amount || priceObj[0]?.value || priceObj[0] || 0)
-    } else if (typeof priceObj === 'object') {
-      price = Number(priceObj.amount || priceObj.value || priceObj.price || 0)
-    } else {
-      price = Number(priceObj || 0)
-    }
+  if (pr?.byOperation?.SALE?.price) {
+    price = Number(pr.byOperation.SALE.price)
+  } else if (pr?.byOperation?.RENT?.price) {
+    price = Number(pr.byOperation.RENT.price)
   }
 
   // Property details
   const prop = ad.property || {}
-  const rooms = Number(prop.rooms || prop.bedrooms || prop.bedRooms || prop.numberOfRooms || 0)
-  const bathrooms = Number(prop.bathrooms || prop.bathRooms || prop.numberOfBathrooms || 0)
-  const size = Number(prop.size || prop.constructedArea || prop.area || prop.surface || prop.builtUpArea || 0)
-  
-  // Property type mapping
+  const rooms = Number(prop.rooms || prop.bedrooms || 0)
+  const bathrooms = Number(prop.bathrooms || 0)
+  const size = Number(prop.size || prop.constructedArea || prop.usableArea || 0)
+
+  // Type mapping
   const typeMap: Record<string, string> = {
-    '0': 'Piso', '1': 'Casa', '2': 'Chalet', '3': 'Adosado', '4': 'Ático',
+    '0': 'Piso', '1': 'Casa', '2': 'Chalet', '3': 'Adosado', '4': 'Atico',
     '5': 'Local', '6': 'Oficina', '7': 'Terreno', '8': 'Garaje', '9': 'Trastero',
     '10': 'Nave', '11': 'Finca', '12': 'Edificio'
   }
-  const rawType = String(prop.type || prop.typology || prop.subtype || '')
-  const propertyType = typeMap[rawType] || rawType || 'Inmueble'
+  const rawType = String(prop.typology || prop.propertyType || '')
+  const propertyType = typeMap[rawType] || 'Inmueble'
 
-  // Location from scope
-  const scope = ad.scope || {}
-  const city = scope.city || scope.cityName || scope.municipality || ''
-  const zone = scope.zone || scope.zoneName || scope.neighbourhood || scope.district || ''
-  const province = scope.province || scope.provinceName || ''
-  const location = [zone, city].filter(Boolean).join(', ') || 'Huércal-Overa'
+  // Location from property.address.location
+  const addr = prop.address || {}
+  const loc = addr.location || {}
+  const locationName = loc.name || ''
+  const zones = loc.zones?.zones || {}
+  const zoneName = zones.LEVEL4?.name || zones.LEVEL5?.name || ''
+  const location = locationName || zoneName || 'Huercal-Overa'
 
   return {
     id: ad.id || '',
@@ -69,7 +60,6 @@ function mapProperty(ad: any) {
     rooms,
     bathrooms,
     location,
-    city,
     images,
     image: images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
   }
@@ -95,20 +85,16 @@ export async function GET() {
 
     const properties = rawAds.map(mapProperty)
 
-    // Debug: show sub-objects of first item
-    const first = rawAds[0] || {}
-    const debug = {
-      prices: JSON.stringify(first.prices || {}).substring(0, 500),
-      property: JSON.stringify(first.property || {}).substring(0, 500),
-      multimedias: JSON.stringify(first.multimedias || {}).substring(0, 500),
-      scope: JSON.stringify(first.scope || {}).substring(0, 500),
-      operations: JSON.stringify(first.operations || {}).substring(0, 500),
-      extras: JSON.stringify(first.extras || {}).substring(0, 300),
-      total: rawAds.length,
-    }
-
-    return NextResponse.json({ success: true, properties, total: properties.length, debug, timestamp: new Date().toISOString() })
+    return NextResponse.json({
+      success: true,
+      properties,
+      total: properties.length,
+      timestamp: new Date().toISOString(),
+    })
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 })
   }
-        }
+                               }
