@@ -4,7 +4,7 @@ import {
   Phone, ArrowRight, Star, Shield, Users, TrendingUp, MapPin,
   Home, Search, Calculator, CheckCircle, Quote, ChevronRight,
 } from 'lucide-react'
-import { siteConfig, testimonials, featuredProperties, services } from '@/data/site'
+import { siteConfig, testimonials, services } from '@/data/site'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
 import { SectionHeading } from '@/components/SectionHeading'
 import { PropertyCard } from '@/components/PropertyCard'
@@ -17,7 +17,28 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://inmobiliariaelite.es' },
 }
 
-export default function HomePage() {
+async function getFeaturedProperties() {
+  try {
+    const res = await fetch('https://inmobiliaria-elite-montesinos72s-projects.vercel.app/api/properties', {
+      next: { revalidate: 3600 } // Revalidar cada hora
+    })
+    
+    if (!res.ok) {
+      console.error('Error fetching properties:', res.status)
+      return []
+    }
+    
+    const data = await res.json()
+    // Devolver solo las primeras 3 propiedades para destacadas
+    return data.properties?.slice(0, 3) || []
+  } catch (error) {
+    console.error('Error fetching properties:', error)
+    return []
+  }
+}
+
+export default async function HomePage() {
+  const featuredProperties = await getFeaturedProperties()
   return (
     <>
       <section className="relative min-h-screen flex items-center">
@@ -56,7 +77,15 @@ export default function HomePage() {
 
       <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite">
         <SectionHeading label="Propiedades destacadas" title="Encuentra tu próximo hogar" description="Una selección de nuestras propiedades más atractivas."/>
-        <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{featuredProperties.slice(0,3).map(p=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}</StaggerContainer>
+        {featuredProperties.length > 0 ? (
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredProperties.map(p=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
+          </StaggerContainer>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-brand-slate">Cargando propiedades desde nuestro CRM...</p>
+          </div>
+        )}
         <FadeIn delay={0.3}><div className="text-center mt-10"><Link href="/comprar" className="btn-primary">Ver más propiedades<ArrowRight size={16}/></Link></div></FadeIn>
       </div></div></section>
 
