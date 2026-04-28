@@ -1,35 +1,44 @@
-import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { syncProperties } from '@/lib/idealista/sync-service'
+import { syncPropertiesSimple } from '@/lib/crm/sync-service'
 
 export async function POST(request: Request) {
   try {
-    // Verify authorization
-    const headersList = await headers()
-    const authHeader = headersList.get('authorization')
-    const secret = process.env.IDEALISTA_SYNC_SECRET
+    // Verificar autenticación
+    const authHeader = request.headers.get('authorization')
+    const expectedAuth = `Bearer ${process.env.IDEALISTA_SYNC_SECRET || process.env.CRON_SECRET}`
 
-    if (!secret) {
-      return NextResponse.json(
-        { error: 'Sync secret not configured' },
-        { status: 500 }
-      )
-    }
-
-    if (!authHeader || authHeader !== `Bearer ${secret}`) {
+    if (!authHeader || authHeader !== expectedAuth) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    // Execute sync
-    console.log('[API] Manual sync triggered')
-    const result = await syncProperties()
+    console.log('[API] Starting property sync from CRM...')
+
+    // Ejecutar sincronización simple desde la API del CRM
+    const result = await syncPropertiesSimple()
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error,
+          timestamp: result.timestamp,
+        },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
-      ...result,
-      timestamp: new Date().toISOString(),
+      success: true,
+      message: 'Properties synced successfully from CRM API',
+      stats: {
+        total: result.total,
+        properties: result.properties.length,
+      },
+      timestamp: result.timestamp,
+      durationMs: result.durationMs,
     })
   } catch (error) {
     console.error('[API] Sync failed:', error)
@@ -45,11 +54,36 @@ export async function POST(request: Request) {
   }
 }
 
-// GET method to check status
+// GET method para pruebas rápidas sin autenticación
 export async function GET() {
-  return NextResponse.json({
-    message: 'Idealista sync endpoint',
-    method: 'POST',
-    auth: 'Bearer token required',
-  })
+  try {
+    console.log('[API] GET request - fetching properties from CRM...')
+    
+    const result = await syncPropertiesSimple()
+    
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error,
+        },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      properties: result.properties,
+      total: result.total,
+      timestamp: result.timestamp,
+    })
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    )
+  }
 }
