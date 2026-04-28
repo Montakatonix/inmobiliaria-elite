@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 async function getFeaturedProperties() {
   try {
     const res = await fetch('https://inmobiliaria-elite-montesinos72s-projects.vercel.app/api/properties', {
-      next: { revalidate: 3600 } // Revalidar cada hora
+      next: { revalidate: 3600 }
     })
     
     if (!res.ok) {
@@ -32,17 +32,16 @@ async function getFeaturedProperties() {
     const data = await res.json()
     const properties = data.properties?.slice(0, 3) || []
     
-    // Convertir propiedades del CRM al formato PropertyCard
     return properties.map((p: Property) => ({
       id: p.id,
-      title: p.title,
-      location: p.location || 'Huércal-Overa',
+      title: p.title || 'Propiedad',
+      location: p.location || p.city || p.address || 'Huércal-Overa',
       price: p.price || 0,
-      bedrooms: p.rooms || 2,
-      bathrooms: p.bathrooms || 1,
-      area: p.size || 100,
-      type: p.property_type,
-      image: p.images?.[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80'
+      bedrooms: p.rooms || p.bedrooms || 0,
+      bathrooms: p.bathrooms || 0,
+      area: p.size || p.area || 0,
+      type: p.property_type || p.type || 'Inmueble',
+      image: (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80')
     }))
   } catch (error) {
     console.error('Error fetching properties:', error)
@@ -150,4 +149,4 @@ function ServiceIcon({ name }: { name: string }) {
     Handshake: <Shield size={22} className="text-brand-gold" />,
   }
   return <>{icons[name] || <Home size={22} className="text-brand-gold" />}</>
-}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }
