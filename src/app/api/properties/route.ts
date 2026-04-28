@@ -6,6 +6,42 @@ const CRM_API_TOKEN = 'Elite_SuperSecretToken_2026'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function mapProperty(ad: any) {
+  // Extraer descripcion
+  const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
+  
+  // Extraer imagenes
+  let images: string[] = []
+  if (ad.images?.image) {
+    const imgList = Array.isArray(ad.images.image) ? ad.images.image : [ad.images.image]
+    images = imgList.map((img: any) => img.url || img).filter(Boolean)
+  } else if (ad.multimedia?.images?.image) {
+    const imgList = Array.isArray(ad.multimedia.images.image) ? ad.multimedia.images.image : [ad.multimedia.images.image]
+    images = imgList.map((img: any) => img.url || img).filter(Boolean)
+  }
+
+  // Extraer ubicacion
+  const location = ad.address?.addressName || ad.ubication?.locationName || ad.location || ''
+  const city = ad.address?.cityName || ad.ubication?.cityName || ''
+  
+  return {
+    id: ad.id || '',
+    title: ad.title || comment.substring(0, 60) || 'Propiedad',
+    description: comment,
+    property_type: ad.propertyType || ad.typology || 'Inmueble',
+    operation_type: ad.operation || ad.operationType || 'sale',
+    price: Number(ad.price || ad.priceInfo?.amount || 0),
+    size: Number(ad.size || ad.surface || ad.constructedArea || 0),
+    rooms: Number(ad.rooms || ad.bedrooms || 0),
+    bathrooms: Number(ad.bathrooms || 0),
+    location: location || city || 'Huércal-Overa',
+    city: city,
+    address: ad.address?.addressName || '',
+    images: images,
+    image: images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
+  }
+}
+
 export async function GET() {
   try {
     const response = await fetch(`${CRM_API_URL}?get_inmuebles`, {
@@ -20,52 +56,27 @@ export async function GET() {
     if (!response.ok) {
       return NextResponse.json({
         success: false,
-        error: `CRM API error: ${response.status} ${response.statusText}`,
-        timestamp: new Date().toISOString(),
+        error: `CRM API error: ${response.status}`,
       }, { status: 500 })
     }
 
     const rawData = await response.json()
     
-    // La API del CRM devuelve el JSON del XML de Idealista
-    // Puede ser un array directamente o un objeto con propiedades
-    let properties: any[] = []
-    
-    if (Array.isArray(rawData)) {
-      properties = rawData
-    } else if (rawData && typeof rawData === 'object') {
-      // Si es un objeto, buscar el array de propiedades
-      if (rawData.property) {
-        properties = Array.isArray(rawData.property) ? rawData.property : [rawData.property]
-      } else if (rawData.properties) {
-        properties = Array.isArray(rawData.properties) ? rawData.properties : [rawData.properties]
-      } else if (rawData.inmuebles) {
-        properties = Array.isArray(rawData.inmuebles) ? rawData.inmuebles : [rawData.inmuebles]
-      } else if (rawData.data) {
-        properties = Array.isArray(rawData.data) ? rawData.data : [rawData.data]
-      } else {
-        // Devolver la estructura raw para debug
-        return NextResponse.json({
-          success: true,
-          properties: [],
-          total: 0,
-          debug: {
-            type: typeof rawData,
-            isArray: false,
-            topLevelKeys: Object.keys(rawData).slice(0, 20),
-            sample: JSON.stringify(rawData).substring(0, 500),
-          },
-          timestamp: new Date().toISOString(),
-        })
-      }
+    // La API del CRM devuelve { ad: [...] }
+    let rawAds: any[] = []
+    if (rawData?.ad) {
+      rawAds = Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]
+    } else if (Array.isArray(rawData)) {
+      rawAds = rawData
     }
 
-    // Debug: mostrar la estructura del primer elemento
-    const debug = properties.length > 0 ? {
-      firstItemKeys: Object.keys(properties[0]).slice(0, 30),
-      firstItemSample: JSON.stringify(properties[0]).substring(0, 1000),
-      totalRaw: properties.length,
-    } : { message: 'No properties found' }
+    const properties = rawAds.map(mapProperty)
+
+    // Debug: info sobre el primer elemento raw
+    const debug = rawAds.length > 0 ? {
+      firstRawKeys: Object.keys(rawAds[0]),
+      totalRaw: rawAds.length,
+    } : null
 
     return NextResponse.json({
       success: true,
@@ -75,11 +86,9 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('[API] Error fetching properties:', error)
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
     }, { status: 500 })
   }
-}
+    }
