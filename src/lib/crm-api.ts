@@ -13,6 +13,7 @@ export interface Property {
   rooms?: number
   bathrooms?: number
   address?: string
+  location?: string
   city?: string
   province?: string
   postal_code?: string
@@ -21,11 +22,9 @@ export interface Property {
   images: string[]
   features?: Record<string, any>
   status?: string
+  [key: string]: any
 }
 
-/**
- * Obtiene todas las propiedades del CRM
- */
 export async function getPropertiesFromCRM(): Promise<Property[]> {
   try {
     const response = await fetch(`${CRM_API_URL}?get_inmuebles`, {
@@ -34,7 +33,7 @@ export async function getPropertiesFromCRM(): Promise<Property[]> {
         'Authorization': `Bearer ${CRM_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      cache: 'no-store', // Siempre obtener datos frescos
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -42,10 +41,9 @@ export async function getPropertiesFromCRM(): Promise<Property[]> {
     }
 
     const properties = await response.json()
-    
     return Array.isArray(properties) ? properties : []
   } catch (error) {
     console.error('[CRM API] Error fetching properties:', error)
     throw error
   }
-}
+  }
