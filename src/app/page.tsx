@@ -5,12 +5,13 @@ import {
   Home, Search, Calculator, CheckCircle, Quote, ChevronRight,
 } from 'lucide-react'
 import { siteConfig, testimonials, services } from '@/data/site'
-import { Property } from '@/lib/crm-api'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
 import { SectionHeading } from '@/components/SectionHeading'
 import { PropertyCard } from '@/components/PropertyCard'
 import { ZoneMap } from '@/components/ZoneMap'
 import { ContactForm } from '@/components/ContactForm'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Inmobiliaria Élite | Compra y venta de viviendas en Huércal-Overa, Almería',
@@ -20,29 +21,40 @@ export const metadata: Metadata = {
 
 async function getFeaturedProperties() {
   try {
-    const res = await fetch('https://inmobiliaria-elite-montesinos72s-projects.vercel.app/api/properties', {
-      next: { revalidate: 3600 }
+    const CRM_URL = 'https://crm.inmobiliariaelite.es/api/'
+    const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
+    const res = await fetch(`${CRM_URL}?get_inmuebles`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${CRM_TOKEN}`, 'Content-Type': 'application/json' },
+      cache: 'no-store',
     })
-    
-    if (!res.ok) {
-      console.error('Error fetching properties:', res.status)
-      return []
-    }
-    
-    const data = await res.json()
-    const properties = data.properties?.slice(0, 3) || []
-    
-    return properties.map((p: Property) => ({
-      id: p.id,
-      title: p.title || 'Propiedad',
-      location: p.location || p.city || p.address || 'Huércal-Overa',
-      price: p.price || 0,
-      bedrooms: p.rooms || p.bedrooms || 0,
-      bathrooms: p.bathrooms || 0,
-      area: p.size || p.area || 0,
-      type: p.property_type || p.type || 'Inmueble',
-      image: (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80')
-    }))
+    if (!res.ok) return []
+    const rawData = await res.json()
+    const ads = rawData?.ad ? (Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]) : []
+
+    return ads.slice(0, 6).map((ad: any) => {
+      const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
+      const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad'
+      const pics = ad.multimedias?.pictures
+      const images = pics ? (Array.isArray(pics) ? pics : [pics]).map((p: any) => p?.multimediaPath || '').filter(Boolean) : []
+      let price = 0
+      if (ad.prices?.byOperation?.SALE?.price) price = Number(ad.prices.byOperation.SALE.price)
+      else if (ad.prices?.byOperation?.RENT?.price) price = Number(ad.prices.byOperation.RENT.price)
+      const prop = ad.property || {}
+      const typeMap: Record<string, string> = { '0': 'Piso', '1': 'Casa', '2': 'Chalet', '5': 'Local', '7': 'Terreno', '12': 'Edificio' }
+      const loc = prop.address?.location?.name || ''
+      return {
+        id: ad.id,
+        title,
+        location: loc || 'Huércal-Overa',
+        price,
+        bedrooms: Number(prop.rooms || 0),
+        bathrooms: Number(prop.bathrooms || 0),
+        area: Number(prop.size || 0),
+        type: typeMap[String(prop.typology || '')] || 'Inmueble',
+        image: images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
+      }
+    })
   } catch (error) {
     console.error('Error fetching properties:', error)
     return []
@@ -95,7 +107,7 @@ export default async function HomePage() {
           </StaggerContainer>
         ) : (
           <div className="text-center py-12">
-            <p className="text-brand-slate">Cargando propiedades desde nuestro CRM...</p>
+            <p className="text-brand-slate">Cargando propiedades...</p>
           </div>
         )}
         <FadeIn delay={0.3}><div className="text-center mt-10"><Link href="/comprar" className="btn-primary">Ver más propiedades<ArrowRight size={16}/></Link></div></FadeIn>
@@ -149,4 +161,4 @@ function ServiceIcon({ name }: { name: string }) {
     Handshake: <Shield size={22} className="text-brand-gold" />,
   }
   return <>{icons[name] || <Home size={22} className="text-brand-gold" />}</>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }
+                                               }
