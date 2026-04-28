@@ -1,15 +1,50 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { Phone, ArrowRight, CheckCircle } from 'lucide-react'
-import { siteConfig, featuredProperties, buyingSteps } from '@/data/site'
+import { siteConfig, buyingSteps } from '@/data/site'
+import { Property } from '@/lib/crm-api'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
 import { SectionHeading } from '@/components/SectionHeading'
 import { PropertyCard } from '@/components/PropertyCard'
 import { ContactForm } from '@/components/ContactForm'
 export const metadata: Metadata = { title: 'Comprar vivienda en Huercal-Overa y Almería', description: 'Encuentra tu vivienda ideal.' }
-export default function ComprarPage() { return (<>
+
+async function getProperties() {
+  try {
+    const res = await fetch('https://inmobiliaria-elite-montesinos72s-projects.vercel.app/api/properties', {
+      next: { revalidate: 3600 }
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    const properties = data.properties || []
+    return properties.map((p: Property) => ({
+      id: p.id,
+      title: p.title || 'Propiedad',
+      location: p.location || p.city || p.address || 'Huércal-Overa',
+      price: p.price || 0,
+      bedrooms: p.rooms || p.bedrooms || 0,
+      bathrooms: p.bathrooms || 0,
+      area: p.size || p.area || 0,
+      type: p.property_type || p.type || 'Inmueble',
+      image: (Array.isArray(p.images) && p.images.length > 0) ? p.images[0] : (p.image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80')
+    }))
+  } catch (error) {
+    console.error('Error fetching properties:', error)
+    return []
+  }
+}
+
+export default async function ComprarPage() {
+  const allProperties = await getProperties()
+  return (<>
   <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28"><div className="absolute inset-0"><img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&q=80" alt="Viviendas" className="w-full h-full object-cover"/><div className="absolute inset-0 bg-brand-navy/80"/></div><div className="relative z-10 section-padding"><div className="container-elite max-w-3xl"><FadeIn><span className="text-brand-gold text-xs font-semibold uppercase tracking-[0.25em]">Comprar vivienda</span></FadeIn><FadeIn delay={0.1}><h1 className="heading-xl text-white mt-4 mb-6">Encuentra la casa que estas buscando</h1></FadeIn><FadeIn delay={0.2}><p className="text-lg text-white/80 leading-relaxed max-w-xl">Te ayudamos a encontrar tu hogar ideal con asesoramiento financiero incluido.</p></FadeIn></div></div></section>
   <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite"><SectionHeading label="Proceso" title="Te acompañamos en cada paso"/><div className="max-w-3xl mx-auto"><StaggerContainer className="space-y-8">{buyingSteps.map(s=><StaggerItem key={s.step}><div className="flex gap-6"><div className="flex-shrink-0 w-12 h-12 bg-brand-gold text-white rounded-full flex items-center justify-center font-display font-bold text-lg">{s.step}</div><div className="pt-1"><h3 className="font-display text-xl font-semibold text-brand-navy mb-2">{s.title}</h3><p className="text-body">{s.description}</p></div></div></StaggerItem>)}</StaggerContainer></div></div></div></section>
-  <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite"><SectionHeading label="Destacados" title="Propiedades seleccionadas"/><StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{featuredProperties.map(p=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}</StaggerContainer></div></div></section>
+  <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite"><SectionHeading label="Destacados" title="Propiedades seleccionadas"/>
+        {allProperties.length > 0 ? (
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{allProperties.map((p: any)=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}</StaggerContainer>
+        ) : (
+          <div className="text-center py-12"><p className="text-brand-slate">No hay propiedades disponibles en este momento.</p></div>
+        )}
+  </div></div></section>
   <section className="bg-brand-cream py-20 lg:py-28"><div className="section-padding"><div className="container-elite"><div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center"><FadeIn><div><h2 className="heading-lg mt-3 mb-6">Comprar con la Elite tiene ventajas</h2><div className="space-y-4">{['Asesoramiento financiero incluido','Acceso a propiedades exclusivas','Verificación legal completa','Negociación profesional','Acompañamiento hasta notaría'].map(b=><div key={b} className="flex items-start gap-3"><CheckCircle size={20} className="text-brand-gold flex-shrink-0 mt-0.5"/><span className="text-brand-charcoal">{b}</span></div>)}</div></div></FadeIn><FadeIn delay={0.2} direction="left"><div className="bg-white p-8 lg:p-10 rounded-sm shadow-sm border border-gray-100"><ContactForm variant="comprar"/></div></FadeIn></div></div></div></section>
 </>)}
