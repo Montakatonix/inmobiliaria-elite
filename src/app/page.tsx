@@ -30,8 +30,20 @@ async function getFeaturedProperties() {
     }
     
     const data = await res.json()
-    // Devolver solo las primeras 3 propiedades para destacadas
-    return data.properties?.slice(0, 3) || []
+    const properties = data.properties?.slice(0, 3) || []
+    
+    // Convertir propiedades del CRM al formato PropertyCard
+    return properties.map((p: Property) => ({
+      id: p.id,
+      title: p.title,
+      location: p.location || 'Huércal-Overa',
+      price: p.price || 0,
+      bedrooms: p.rooms || 2,
+      bathrooms: p.bathrooms || 1,
+      area: p.size || 100,
+      type: p.property_type,
+      image: p.images?.[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80'
+    }))
   } catch (error) {
     console.error('Error fetching properties:', error)
     return []
@@ -80,7 +92,7 @@ export default async function HomePage() {
         <SectionHeading label="Propiedades destacadas" title="Encuentra tu próximo hogar" description="Una selección de nuestras propiedades más atractivas."/>
         {featuredProperties.length > 0 ? (
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProperties.map((p: Property)=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
+            {featuredProperties.map((p: any)=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
           </StaggerContainer>
         ) : (
           <div className="text-center py-12">
