@@ -7,37 +7,51 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function mapProperty(ad: any) {
-  // Extraer descripcion
   const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
-  
-  // Extraer imagenes
+  const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad en venta'
+
+  // Imagenes: multimedias.pictures.picture[] o multimedias.images.image[]
   let images: string[] = []
-  if (ad.images?.image) {
-    const imgList = Array.isArray(ad.images.image) ? ad.images.image : [ad.images.image]
-    images = imgList.map((img: any) => img.url || img).filter(Boolean)
-  } else if (ad.multimedia?.images?.image) {
-    const imgList = Array.isArray(ad.multimedia.images.image) ? ad.multimedia.images.image : [ad.multimedia.images.image]
-    images = imgList.map((img: any) => img.url || img).filter(Boolean)
+  const pics = ad.multimedias?.pictures?.picture || ad.multimedias?.images?.image || ad.multimedias?.multimedia || []
+  const picList = Array.isArray(pics) ? pics : [pics]
+  images = picList.map((p: any) => p?.url || p?.src || p?.highResUrl || (typeof p === 'string' ? p : '')).filter(Boolean)
+
+  // Precio: prices.price[] o prices.amount
+  let price = 0
+  if (ad.prices?.price) {
+    const priceList = Array.isArray(ad.prices.price) ? ad.prices.price : [ad.prices.price]
+    price = Number(priceList[0]?.amount || priceList[0]?.value || priceList[0] || 0)
+  } else if (ad.prices?.amount) {
+    price = Number(ad.prices.amount)
   }
 
-  // Extraer ubicacion
-  const location = ad.address?.addressName || ad.ubication?.locationName || ad.location || ''
-  const city = ad.address?.cityName || ad.ubication?.cityName || ''
-  
+  // Property details: property.rooms, property.bathrooms, property.size, property.type
+  const prop = ad.property || {}
+  const rooms = Number(prop.rooms || prop.bedrooms || prop.bedRooms || 0)
+  const bathrooms = Number(prop.bathrooms || prop.bathRooms || 0)
+  const size = Number(prop.size || prop.constructedArea || prop.area || prop.surface || 0)
+  const propertyType = prop.type || prop.typology || prop.subtype || 'Inmueble'
+
+  // Ubicacion: scope o property.address
+  const scope = ad.scope || {}
+  const city = scope.cityName || scope.city || prop.address?.cityName || ''
+  const zone = scope.zoneName || scope.zone || ''
+  const province = scope.provinceName || scope.province || ''
+  const location = zone ? zone + ', ' + city : city || 'Huércal-Overa'
+
   return {
     id: ad.id || '',
-    title: ad.title || comment.substring(0, 60) || 'Propiedad',
+    title,
     description: comment,
-    property_type: ad.propertyType || ad.typology || 'Inmueble',
-    operation_type: ad.operation || ad.operationType || 'sale',
-    price: Number(ad.price || ad.priceInfo?.amount || 0),
-    size: Number(ad.size || ad.surface || ad.constructedArea || 0),
-    rooms: Number(ad.rooms || ad.bedrooms || 0),
-    bathrooms: Number(ad.bathrooms || 0),
-    location: location || city || 'Huércal-Overa',
-    city: city,
-    address: ad.address?.addressName || '',
-    images: images,
+    property_type: propertyType,
+    operation_type: ad.operations?.operation?.[0]?.type || 'sale',
+    price,
+    size,
+    rooms,
+    bathrooms,
+    location,
+    city,
+    images,
     image: images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
   }
 }
@@ -54,15 +68,10 @@ export async function GET() {
     })
 
     if (!response.ok) {
-      return NextResponse.json({
-        success: false,
-        error: `CRM API error: ${response.status}`,
-      }, { status: 500 })
+      return NextResponse.json({ success: false, error: `CRM error: ${response.status}` }, { status: 500 })
     }
 
     const rawData = await response.json()
-    
-    // La API del CRM devuelve { ad: [...] }
     let rawAds: any[] = []
     if (rawData?.ad) {
       rawAds = Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]
@@ -72,9 +81,9 @@ export async function GET() {
 
     const properties = rawAds.map(mapProperty)
 
-    // Debug: info sobre el primer elemento raw
+    // Debug del primer raw item
     const debug = rawAds.length > 0 ? {
-      firstRawKeys: Object.keys(rawAds[0]),
+      firstRawSample: JSON.stringify(rawAds[0]).substring(0, 2000),
       totalRaw: rawAds.length,
     } : null
 
@@ -91,4 +100,4 @@ export async function GET() {
       error: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 })
   }
-    }
+        }
