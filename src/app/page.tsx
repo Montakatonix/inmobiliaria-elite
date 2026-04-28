@@ -5,6 +5,7 @@ import {
   Home, Search, Calculator, CheckCircle, Quote, ChevronRight,
 } from 'lucide-react'
 import { siteConfig, testimonials, services } from '@/data/site'
+import { Property } from '@/lib/crm-api'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
 import { SectionHeading } from '@/components/SectionHeading'
 import { PropertyCard } from '@/components/PropertyCard'
@@ -79,7 +80,7 @@ export default async function HomePage() {
         <SectionHeading label="Propiedades destacadas" title="Encuentra tu próximo hogar" description="Una selección de nuestras propiedades más atractivas."/>
         {featuredProperties.length > 0 ? (
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProperties.map(p=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
+            {featuredProperties.map((p: Property)=><StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
           </StaggerContainer>
         ) : (
           <div className="text-center py-12">
