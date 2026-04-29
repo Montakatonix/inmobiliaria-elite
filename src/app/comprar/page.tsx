@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import Link from 'next/link'
 import { CheckCircle } from 'lucide-react'
 import { buyingSteps } from '@/data/site'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/FadeIn'
@@ -11,16 +10,10 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Comprar vivienda en Huércal-Overa y Almería | Inmobiliaria Élite', description: 'Encuentra tu vivienda ideal en el Levante Almeriense.' }
 
 function extractFromDesc(desc: string) {
-  const rooms = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
-  const baths = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
-  const size = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
-  return { rooms: rooms ? Number(rooms) : 0, bathrooms: baths ? Number(baths) : 0, size: size ? Number(size) : 0 }
-}
-function isSpanish(text: string) {
-  if (!text) return false
-  if (/[\u0400-\u04FF]/.test(text)) return false
-  if (/[\u0102\u0103\u015E\u015F\u021A\u021B]/.test(text)) return false
-  return true
+  const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
+  const b = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
+  const s = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
+  return { bedrooms: r ? Number(r) : 0, bathrooms: b ? Number(b) : 0, area: s ? Number(s) : 0 }
 }
 
 async function getAllProperties() {
@@ -44,15 +37,15 @@ async function getAllProperties() {
         const byOp = ad.prices?.byOperation
         const price = byOp?.SALE?.price ? Number(byOp.SALE.price) : byOp?.RENT?.price ? Number(byOp.RENT.price) : 0
         const prop = ad.property || {}
-        const property_type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
+        const type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
         const location: string = prop.address?.location?.name || 'Huércal-Overa'
-        const fromDesc = extractFromDesc(description)
-        const rooms = Number(prop.rooms || 0) || fromDesc.rooms
-        const bathrooms = Number(prop.bathrooms || 0) || fromDesc.bathrooms
-        const size = Number(prop.size || prop.constructedArea || 0) || fromDesc.size
-        return { id: String(ad.id), title, description, property_type, price, rooms, bathrooms, size, location, images, image: images[0] || '' }
+        const fd = extractFromDesc(description)
+        const bedrooms = Number(prop.rooms || 0) || fd.bedrooms
+        const bathrooms = Number(prop.bathrooms || 0) || fd.bathrooms
+        const area = Number(prop.size || prop.constructedArea || 0) || fd.area
+        return { id: String(ad.id), title, description, type, price, bedrooms, bathrooms, area, location, images, image: images[0] || '' }
       })
-      .filter((p: any) => p.price > 0 && isSpanish(p.title))
+      .filter((p: any) => p.price > 0)
   } catch { return [] }
 }
 
@@ -80,7 +73,7 @@ export default async function ComprarPage() {
           {properties.map((p: any) => <StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
         </StaggerContainer>
       ) : (
-        <p className="text-center text-brand-slate py-12">No hay propiedades disponibles en este momento.</p>
+        <p className="text-center text-brand-slate py-12">No hay propiedades disponibles.</p>
       )}
     </div></div></section>
 
@@ -91,4 +84,4 @@ export default async function ComprarPage() {
       </div>
     </div></div></section>
   </>)
-    }
+      }
