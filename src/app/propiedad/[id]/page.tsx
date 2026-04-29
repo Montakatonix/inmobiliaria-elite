@@ -9,10 +9,24 @@ export const dynamic = 'force-dynamic'
 const CRM_URL = 'https://crm.inmobiliariaelite.es/api/'
 const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
 
+// language="0" = español en el XML de Idealista
+function getSpanishComment(adComments: any[]): string {
+  if (!Array.isArray(adComments)) return ''
+  const es = adComments.find(c => String(c.language) === '0')
+  return es?.propertyComment?.trim() || adComments[0]?.propertyComment?.trim() || ''
+}
+
+function extractFromDesc(desc: string) {
+  const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
+  const b = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
+  const s = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
+  return { rooms: r ? Number(r) : 0, bathrooms: b ? Number(b) : 0, size: s ? Number(s) : 0 }
+}
+
 async function getProperty(id: string) {
   try {
     const res = await fetch(`${CRM_URL}?get_inmuebles`, {
-      headers: { 'Authorization': `Bearer ${CRM_TOKEN}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${CRM_TOKEN}` },
       cache: 'no-store',
     })
     if (!res.ok) return null
@@ -21,80 +35,132 @@ async function getProperty(id: string) {
     const ad = ads.find((a: any) => String(a.id) === id)
     if (!ad) return null
 
-    const comment = ad.comments?.adComments?.[0]?.propertyComment || ''
+    const comment = getSpanishComment(ad.comments?.adComments)
     const title = comment.split('\n')[0]?.trim() || 'Propiedad en venta'
     const pics = ad.multimedias?.pictures
     const images = pics ? (Array.isArray(pics) ? pics : [pics]).map((p: any) => p?.multimediaPath || '').filter(Boolean) : []
     let price = 0
     if (ad.prices?.byOperation?.SALE?.price) price = Number(ad.prices.byOperation.SALE.price)
     else if (ad.prices?.byOperation?.RENT?.price) price = Number(ad.prices.byOperation.RENT.price)
+    const typeMap: Record<string, string> = { '0':'Piso','1':'Casa','2':'Chalet','3':'Adosado','4':'Ático','5':'Local','6':'Oficina','7':'Terreno','8':'Garaje','9':'Trastero','10':'Nave','11':'Finca','12':'Edificio' }
     const prop = ad.property || {}
-    const typeMap: Record<string, string> = { '0': 'Piso', '1': 'Casa', '2': 'Chalet', '5': 'Local', '7': 'Terreno', '12': 'Edificio' }
-    const loc = prop.address?.location?.name || ''
+    const fd = extractFromDesc(comment)
     return {
       id: ad.id, title, description: comment,
-      property_type: typeMap[String(prop.typology || '')] || 'Inmueble',
-      price, size: Number(prop.size || 0), rooms: Number(prop.rooms || 0), bathrooms: Number(prop.bathrooms || 0),
-      location: loc || 'Huercal-Overa', images,
-      image: images[0] || '',
+      property_type: typeMap[String(prop.typology ?? '')] || 'Inmueble',
+      price, images, image: images[0] || '',
+      location: prop.address?.location?.name || 'Huércal-Overa',
+      rooms: Number(prop.rooms || 0) || fd.rooms,
+      bathrooms: Number(prop.bathrooms || 0) || fd.bathrooms,
+      size: Number(prop.size || prop.constructedArea || 0) || fd.size,
     }
   } catch { return null }
 }
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const p = await getProperty(params.id)
-  return { title: p ? `${p.title.substring(0,60)} | Inmobiliaria Elite` : 'Propiedad | Inmobiliaria Elite' }
+  if (!p) return { title: 'Propiedad no encontrada' }
+  return {
+    title: `${p.title} | Inmobiliaria Élite`,
+    description: p.description.substring(0, 160),
+  }
 }
 
-export default async function PropertyPage({ params }: { params: { id: string } }) {
+export default async function PropiedadPage({ params }: { params: { id: string } }) {
   const property = await getProperty(params.id)
+
   if (!property) {
-    return (<div className="min-h-screen flex items-center justify-center pt-32">
-      <div className="text-center"><h1 className="heading-lg mb-4">Propiedad no encontrada</h1>
-      <Link href="/comprar" className="btn-primary">Volver a propiedades</Link></div></div>)
-  }
-  const fmt = (n: number) => n.toLocaleString('es-ES') + '\u00a0\u20ac'
-  return (<>
-    <div className="pt-28 lg:pt-36 pb-20 bg-white"><div className="section-padding"><div className="container-elite">
-      <Link href="/comprar" className="inline-flex items-center gap-2 text-sm text-brand-warm-gray hover:text-brand-gold transition-colors mb-8"><ArrowLeft size={16}/> Volver a propiedades</Link>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          {property.images[0] && (<div className="aspect-[16/10] rounded-sm overflow-hidden mb-3">
-            <img src={property.images[0]} alt={property.title} className="w-full h-full object-cover"/></div>)}
-          {property.images.length > 1 && (<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {property.images.slice(1).map((img: string, i: number) => (
-              <div key={i} className="aspect-[4/3] rounded-sm overflow-hidden">
-                <img src={img} alt={`Foto ${i+2}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy"/></div>))}
-          </div>)}
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="font-display text-2xl font-bold text-brand-navy mb-4">Propiedad no encontrada</h1>
+          <Link href="/comprar" className="btn-primary">Ver todas las propiedades</Link>
         </div>
-        <div className="lg:col-span-1"><div className="sticky top-32">
-          <span className="inline-block bg-brand-navy/90 text-white text-xs font-medium px-3 py-1.5 rounded-sm mb-4">{property.property_type}</span>
-          <h1 className="font-display text-2xl lg:text-3xl font-bold text-brand-navy mb-3 leading-tight">{property.title}</h1>
-          <p className="flex items-center gap-1.5 text-brand-warm-gray text-sm mb-6"><MapPin size={16} className="text-brand-gold"/> {property.location}</p>
-          <div className="text-3xl font-display font-bold text-brand-gold mb-8">{fmt(property.price)}</div>
-          {(property.rooms > 0 || property.bathrooms > 0 || property.size > 0) && (
-            <div className="flex gap-6 mb-8 pb-8 border-b border-gray-100">
-              {property.rooms > 0 && <div><span className="block text-2xl font-bold text-brand-navy">{property.rooms}</span><span className="text-xs text-brand-warm-gray">Habitaciones</span></div>}
-              {property.bathrooms > 0 && <div><span className="block text-2xl font-bold text-brand-navy">{property.bathrooms}</span><span className="text-xs text-brand-warm-gray">Banos</span></div>}
-              {property.size > 0 && <div><span className="block text-2xl font-bold text-brand-navy">{property.size}</span><span className="text-xs text-brand-warm-gray">m2</span></div>}
-            </div>)}
-          <div className="bg-brand-light-bg p-6 rounded-sm mb-6">
-            <h3 className="font-display text-lg font-semibold text-brand-navy mb-4">Te interesa?</h3>
-            <div className="space-y-3">
-              <a href={`tel:${siteConfig.phone}`} className="btn-primary w-full justify-center"><Phone size={16}/> Llamar ahora</a>
-              <a href={`https://wa.me/34633077837?text=Hola, me interesa la propiedad: ${property.title} (Ref: ${property.id})`} target="_blank" rel="noopener noreferrer" className="btn-outline-gold w-full justify-center">WhatsApp</a>
-              <a href={`mailto:${siteConfig.email}?subject=Consulta propiedad ${property.id}`} className="btn-secondary w-full justify-center"><Mail size={16}/> Email</a>
+      </div>
+    )
+  }
+
+  const formattedPrice = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(property.price)
+
+  return (
+    <>
+      {/* Galería de imágenes */}
+      <section className="relative pt-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 max-h-[60vh] overflow-hidden">
+          {property.images.slice(0, 5).map((img, i) => (
+            <div key={i} className={i === 0 ? 'col-span-1 md:col-span-2 row-span-2' : ''}>
+              <img src={img} alt={`${property.title} - foto ${i+1}`} className="w-full h-full object-cover" style={{ maxHeight: i === 0 ? '60vh' : '30vh' }} loading={i === 0 ? 'eager' : 'lazy'} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white py-12 lg:py-16">
+        <div className="section-padding"><div className="container-elite">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            {/* Columna principal */}
+            <div className="lg:col-span-2">
+              <Link href="/comprar" className="inline-flex items-center gap-2 text-sm text-brand-warm-gray hover:text-brand-gold transition-colors mb-6">
+                <ArrowLeft size={16}/> Volver a propiedades
+              </Link>
+              <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-brand-gold bg-brand-gold/10 px-3 py-1 rounded-sm">{property.property_type}</span>
+                  <h1 className="font-display text-2xl lg:text-3xl font-bold text-brand-navy mt-3">{property.title}</h1>
+                  <p className="flex items-center gap-1.5 text-brand-warm-gray mt-2"><MapPin size={16}/>{property.location}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-display text-3xl lg:text-4xl font-bold text-brand-gold">{formattedPrice}</p>
+                </div>
+              </div>
+
+              {/* Características */}
+              {(property.rooms > 0 || property.bathrooms > 0 || property.size > 0) && (
+                <div className="grid grid-cols-3 gap-4 bg-brand-light-bg rounded-sm p-6 mb-8">
+                  {property.rooms > 0 && <div className="text-center"><p className="font-display text-2xl font-bold text-brand-navy">{property.rooms}</p><p className="text-xs text-brand-warm-gray uppercase tracking-wider mt-1">Dormitorios</p></div>}
+                  {property.bathrooms > 0 && <div className="text-center"><p className="font-display text-2xl font-bold text-brand-navy">{property.bathrooms}</p><p className="text-xs text-brand-warm-gray uppercase tracking-wider mt-1">Baños</p></div>}
+                  {property.size > 0 && <div className="text-center"><p className="font-display text-2xl font-bold text-brand-navy">{property.size}</p><p className="text-xs text-brand-warm-gray uppercase tracking-wider mt-1">m²</p></div>}
+                </div>
+              )}
+
+              {/* Descripción completa */}
+              <div className="prose prose-brand max-w-none">
+                <h2 className="font-display text-xl font-semibold text-brand-navy mb-4">Descripción</h2>
+                <div className="text-brand-slate leading-relaxed whitespace-pre-line text-sm">{property.description}</div>
+              </div>
+
+              {/* Galería completa */}
+              {property.images.length > 5 && (
+                <div className="mt-10">
+                  <h2 className="font-display text-xl font-semibold text-brand-navy mb-4">Más fotos</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {property.images.slice(5).map((img, i) => (
+                      <img key={i} src={img} alt={`${property.title} - foto ${i+6}`} className="w-full aspect-[4/3] object-cover rounded-sm" loading="lazy"/>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Columna lateral - formulario */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-28">
+                <div className="bg-brand-light-bg rounded-sm p-6 mb-6">
+                  <p className="font-display text-3xl font-bold text-brand-gold mb-1">{formattedPrice}</p>
+                  <p className="text-sm text-brand-warm-gray">{property.property_type} en {property.location}</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-sm p-6 shadow-sm mb-4">
+                  <h3 className="font-display text-lg font-semibold text-brand-navy mb-4">¿Te interesa esta propiedad?</h3>
+                  <ContactForm variant="propiedad" propertyTitle={property.title}/>
+                </div>
+                <a href={`tel:${siteConfig.phone}`} className="btn-primary w-full justify-center gap-2">
+                  <Phone size={18}/> Llamar ahora
+                </a>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-brand-warm-gray">Ref: {property.id}</p>
         </div></div>
-      </div>
-      <div className="mt-12 max-w-3xl"><h2 className="font-display text-xl font-semibold text-brand-navy mb-4">Descripcion</h2>
-        <div className="text-brand-slate leading-relaxed whitespace-pre-line">{property.description}</div></div>
-    </div></div></div>
-    <section className="bg-brand-light-bg py-16"><div className="section-padding"><div className="container-elite max-w-2xl">
-      <h2 className="font-display text-2xl font-semibold text-brand-navy mb-6 text-center">Solicitar informacion</h2>
-      <div className="bg-white p-8 rounded-sm shadow-sm border border-gray-100"><ContactForm variant="comprar"/></div>
-    </div></div></section>
-  </>)
-}
+      </section>
+    </>
+  )
+    }
