@@ -17,13 +17,6 @@ function extractFromDesc(desc: string) {
   }
 }
 
-function isSpanish(text: string) {
-  if (!text) return false
-  if (/[\u0400-\u04FF]/.test(text)) return false // cirílico (ruso/búlgaro)
-  if (/[\u0102\u0103\u015E\u015F\u021A\u021B]/.test(text)) return false // rumano
-  return true
-}
-
 function mapAd(ad: any) {
   const fullText: string = ad.comments?.adComments?.[0]?.propertyComment || ''
   const firstLine = fullText.split('\n')[0]?.trim() || ''
@@ -34,15 +27,13 @@ function mapAd(ad: any) {
   const picArr = Array.isArray(pics) ? pics : pics ? [pics] : []
   const images: string[] = picArr.map((p: any) => p?.multimediaPath || '').filter(Boolean)
 
-  let price = 0
   const byOp = ad.prices?.byOperation
-  if (byOp?.SALE?.price) price = Number(byOp.SALE.price)
-  else if (byOp?.RENT?.price) price = Number(byOp.RENT.price)
+  const price = byOp?.SALE?.price ? Number(byOp.SALE.price) : byOp?.RENT?.price ? Number(byOp.RENT.price) : 0
 
   const typeMap: Record<string, string> = {
-    '0': 'Piso', '1': 'Casa', '2': 'Chalet', '3': 'Adosado', '4': 'Ático',
-    '5': 'Local', '6': 'Oficina', '7': 'Terreno', '8': 'Garaje',
-    '9': 'Trastero', '10': 'Nave', '11': 'Finca', '12': 'Edificio'
+    '0':'Piso','1':'Casa','2':'Chalet','3':'Adosado','4':'Ático',
+    '5':'Local','6':'Oficina','7':'Terreno','8':'Garaje',
+    '9':'Trastero','10':'Nave','11':'Finca','12':'Edificio'
   }
   const prop = ad.property || {}
   const property_type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
@@ -80,7 +71,7 @@ export async function GET() {
 
     const properties = ads
       .map(mapAd)
-      .filter(p => p.price > 0 && isSpanish(p.title))
+      .filter(p => p.price > 0)
 
     return NextResponse.json({ success: true, properties, total: properties.length })
   } catch (err) {
