@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+
+// Traducciones completadas — v1.0import { NextResponse } from 'next/server'
 
 const CRM_URL = 'https://crm.inmobiliariaelite.es/api/'
 const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
