@@ -7,8 +7,8 @@ export default function Logo() {
       <Image
         src="/logo.png"
         alt="Inmobiliaria Élite"
-        width={160}
-        height={160}
+        width={56}
+        height={56}
         priority
         className="object-contain"
       />
