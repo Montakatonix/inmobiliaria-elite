@@ -6,7 +6,6 @@ const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// language="0" es siempre el español en el XML de Idealista
 function getSpanishComment(adComments: any[]): string {
   if (!Array.isArray(adComments)) return ''
   const es = adComments.find(c => String(c.language) === '0')
@@ -14,10 +13,29 @@ function getSpanishComment(adComments: any[]): string {
 }
 
 function extractFromDesc(desc: string) {
-  const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
-  const b = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
-  const s = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
-  return { bedrooms: r ? Number(r) : 0, bathrooms: b ? Number(b) : 0, area: s ? Number(s) : 0 }
+  // Dormitorios/habitaciones
+  const rMatch =
+    /([0-9]+)\s*dormitorio/i.exec(desc) ||
+    /([0-9]+)\s*habitaci/i.exec(desc) ||
+    /([0-9]+)\s*cuarto/i.exec(desc)
+  
+  // Baños — captura "1 baño", "2 baños", "baño completo" con 1 previo implícito
+  const bMatch = /([0-9]+)\s*ba[n\u00F1]o/i.exec(desc)
+  
+  // Superficie — captura "134 m²", "134 m2", "134 metros", "134 metros construidos"
+  // El símbolo ² es U+00B2
+  const sMatch =
+    /([0-9]+)\s*m\u00B2/i.exec(desc) ||
+    /([0-9]+)\s*m2\b/i.exec(desc) ||
+    /([0-9]+)\s*metros?\s*construid/i.exec(desc) ||
+    /([0-9]+)\s*metros?\s*[u\u00FA]tiles/i.exec(desc) ||
+    /([0-9]+)\s*metros?\b/i.exec(desc)
+
+  return {
+    bedrooms: rMatch ? Number(rMatch[1]) : 0,
+    bathrooms: bMatch ? Number(bMatch[1]) : 0,
+    area: sMatch ? Number(sMatch[1]) : 0,
+  }
 }
 
 function mapAd(ad: any) {
@@ -42,22 +60,16 @@ function mapAd(ad: any) {
   const location: string = prop.address?.location?.name || 'Huércal-Overa'
 
   const fd = extractFromDesc(description)
+  // XML rara vez trae datos numéricos; fallback siempre al regex
   const bedrooms = Number(prop.rooms || 0) || fd.bedrooms
   const bathrooms = Number(prop.bathrooms || 0) || fd.bathrooms
   const area = Number(prop.size || prop.constructedArea || 0) || fd.area
 
   return {
     id: String(ad.id),
-    title,
-    description,
-    type,
-    price,
-    bedrooms,
-    bathrooms,
-    area,
-    location,
-    images,
-    image: images[0] || '',
+    title, description, type, price,
+    bedrooms, bathrooms, area,
+    location, images, image: images[0] || '',
   }
 }
 
@@ -70,13 +82,9 @@ export async function GET() {
     if (!res.ok) throw new Error(`CRM ${res.status}`)
     const raw = await res.json()
     const ads: any[] = Array.isArray(raw?.ad) ? raw.ad : raw?.ad ? [raw.ad] : []
-
-    const properties = ads
-      .map(mapAd)
-      .filter(p => p.price > 0)
-
+    const properties = ads.map(mapAd).filter(p => p.price > 0)
     return NextResponse.json({ success: true, properties, total: properties.length })
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
-}
+                                     }
