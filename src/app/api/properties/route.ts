@@ -3,11 +3,8 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const url = new URL(request.url)
-    const debug = url.searchParams.get('debug')
-    
     const response = await fetch('https://crm.inmobiliariaelite.es/api/?get_inmuebles', {
       method: 'GET',
       headers: { 'Authorization': 'Bearer Elite_SuperSecretToken_2026', 'Content-Type': 'application/json' },
@@ -17,28 +14,25 @@ export async function GET(request: Request) {
     const rawData = await response.json()
     const ads = rawData?.ad ? (Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]) : []
 
-    if (debug === 'comments') {
-      const sample = ads.slice(0, 5).map((ad: any) => ({
-        id: ad.id,
-        comments: ad.comments,
-      }))
-      return NextResponse.json({ sample, total: ads.length })
-    }
-
     const typeMap: Record<string, string> = { '0': 'Piso', '1': 'Casa', '2': 'Chalet', '5': 'Local', '7': 'Terreno', '12': 'Edificio' }
 
     const properties = ads.map((ad: any) => {
+      // Seleccionar comentario en español (language "0"), si no existe usar el primero
       const comments = ad.comments?.adComments || []
-      const esComment = comments.find((c: any) => c.language === 'es') || comments[0] || {}
+      const esComment = comments.find((c: any) => c.language === '0') || comments[0] || {}
       const comment = esComment.propertyComment || ''
       const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad en venta'
+
       const pics = ad.multimedias?.pictures
       const images = pics ? (Array.isArray(pics) ? pics : [pics]).map((p: any) => p?.multimediaPath || '').filter(Boolean) : []
+      
       let price = 0
       if (ad.prices?.byOperation?.SALE?.price) price = Number(ad.prices.byOperation.SALE.price)
       else if (ad.prices?.byOperation?.RENT?.price) price = Number(ad.prices.byOperation.RENT.price)
+      
       const prop = ad.property || {}
       const loc = prop.address?.location?.name || 'Huércal-Overa'
+
       return {
         id: ad.id,
         title,
@@ -58,4 +52,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown' }, { status: 500 })
   }
-      }
+}
