@@ -6,22 +6,73 @@ const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function extractFromDesc(desc: string) {
-  const rooms = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
-  const baths = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
-  const size = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
-  return {
-    bedrooms: rooms ? Number(rooms) : 0,
-    bathrooms: baths ? Number(baths) : 0,
-    area: size ? Number(size) : 0,
+// Detecta si el texto es español
+function isSpanish(text: string): boolean {
+  if (!text || text.length < 10) return true
+  // Caracteres no latinos que indican otro idioma
+  if (/[\u0400-\u04FF]/.test(text)) return false // cirílico (ruso/ucraniano/búlgaro)
+  if (/[\u0102\u0103\u015E\u015F\u021A\u021B\u0218\u0219\u021C\u021D]/.test(text)) return false // rumano específico
+  // Palabras clave de otros idiomas frecuentes
+  const nonSpanishWords = ['house', 'bedroom', 'bathroom', 'property', 'located', 'floor', 'living', 'kitchen',
+    'maison', 'chambre', 'étage', 'opportunité', 'découvrez', 'située',
+    'woning', 'slaapkamer', 'koop', 'gelegen', 'verdieping', 'ruimte',
+    'haus', 'schlafzimmer', 'etage', 'küche', 'zimmer', 'anwesen',
+    'locuinta', 'dormitor', 'baie', 'etaj', 'oportunitate', 'descoperă']
+  const lower = text.toLowerCase()
+  const nonSpanishCount = nonSpanishWords.filter(w => lower.includes(w)).length
+  return nonSpanishCount < 2
+}
+
+// Traducir texto al español usando Claude API
+async function translateToSpanish(text: string): Promise<string> {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: `Traduce este texto al español. Traduce SOLO el texto, sin explicaciones, sin comillas adicionales, sin cambiar nombres propios de lugares (Huércal-Overa, Albox, Pulpí, etc.) ni cantidades numéricas. Mantén el formato y saltos de línea originales:\n\n${text}`
+        }]
+      })
+    })
+    const data = await response.json()
+    return data.content?.[0]?.text || text
+  } catch {
+    return text
   }
 }
 
-function mapAd(ad: any) {
+function extractFromDesc(desc: string) {
+  const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc) ||
+             /([0-9]+)\s*bedroom/i.exec(desc) || /([0-9]+)\s*chambre/i.exec(desc) ||
+             /([0-9]+)\s*slaapkamer/i.exec(desc) || /([0-9]+)\s*schlafzimmer/i.exec(desc) ||
+             /([0-9]+)\s*camera/i.exec(desc))?.[1]
+  const b = (/([0-9]+)\s*ba[ñn]o/i.exec(desc) || /([0-9]+)\s*bathroom/i.exec(desc) ||
+             /([0-9]+)\s*salle de bain/i.exec(desc) || /([0-9]+)\s*badkamer/i.exec(desc) ||
+             /([0-9]+)\s*badezimmer/i.exec(desc))?.[1]
+  const s = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
+  return { bedrooms: r ? Number(r) : 0, bathrooms: b ? Number(b) : 0, area: s ? Number(s) : 0 }
+}
+
+async function mapAd(ad: any) {
   const fullText: string = ad.comments?.adComments?.[0]?.propertyComment || ''
-  const firstLine = fullText.split('\n')[0]?.trim() || ''
-  const title = firstLine.length > 5 ? firstLine : 'Propiedad en venta'
-  const description = fullText.trim()
+  let firstLine = fullText.split('\n')[0]?.trim() || ''
+  let description = fullText.trim()
+
+  // Traducir si no está en español
+  if (!isSpanish(firstLine) || !isSpanish(description.substring(0, 200))) {
+    description = await translateToSpanish(description)
+    firstLine = description.split('\n')[0]?.trim() || firstLine
+  }
+
+  const title = firstLine.length > 5 ? firstLine.substring(0, 120) : 'Propiedad en venta'
 
   const pics = ad.multimedias?.pictures
   const picArr = Array.isArray(pics) ? pics : pics ? [pics] : []
@@ -40,7 +91,6 @@ function mapAd(ad: any) {
   const location: string = prop.address?.location?.name || 'Huércal-Overa'
 
   const fromDesc = extractFromDesc(description)
-  // PropertyCard espera: bedrooms, bathrooms, area
   const bedrooms = Number(prop.rooms || 0) || fromDesc.bedrooms
   const bathrooms = Number(prop.bathrooms || 0) || fromDesc.bathrooms
   const area = Number(prop.size || prop.constructedArea || 0) || fromDesc.area
@@ -70,12 +120,11 @@ export async function GET() {
     const raw = await res.json()
     const ads: any[] = Array.isArray(raw?.ad) ? raw.ad : raw?.ad ? [raw.ad] : []
 
-    const properties = ads
-      .map(mapAd)
-      .filter(p => p.price > 0)
+    // Traducir en paralelo todos los anuncios
+    const properties = (await Promise.all(ads.map(mapAd))).filter(p => p.price > 0)
 
     return NextResponse.json({ success: true, properties, total: properties.length })
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
-      }
+                                                                                  }
