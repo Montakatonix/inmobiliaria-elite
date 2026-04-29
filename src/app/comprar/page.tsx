@@ -9,6 +9,11 @@ import { ContactForm } from '@/components/ContactForm'
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Comprar vivienda en Huércal-Overa y Almería | Inmobiliaria Élite', description: 'Encuentra tu vivienda ideal en el Levante Almeriense.' }
 
+function getSpanishComment(adComments: any[]): string {
+  if (!Array.isArray(adComments)) return ''
+  const es = adComments.find(c => String(c.language) === '0')
+  return es?.propertyComment?.trim() || adComments[0]?.propertyComment?.trim() || ''
+}
 function extractFromDesc(desc: string) {
   const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
   const b = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
@@ -28,9 +33,8 @@ async function getAllProperties() {
     const typeMap: Record<string, string> = { '0':'Piso','1':'Casa','2':'Chalet','3':'Adosado','4':'Ático','5':'Local','6':'Oficina','7':'Terreno','8':'Garaje','9':'Trastero','10':'Nave','11':'Finca','12':'Edificio' }
     return ads
       .map((ad: any) => {
-        const fullText: string = ad.comments?.adComments?.[0]?.propertyComment || ''
+        const fullText = getSpanishComment(ad.comments?.adComments)
         const title = fullText.split('\n')[0]?.trim() || 'Propiedad en venta'
-        const description = fullText.trim()
         const pics = ad.multimedias?.pictures
         const picArr = Array.isArray(pics) ? pics : pics ? [pics] : []
         const images: string[] = picArr.map((p: any) => p?.multimediaPath || '').filter(Boolean)
@@ -39,11 +43,11 @@ async function getAllProperties() {
         const prop = ad.property || {}
         const type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
         const location: string = prop.address?.location?.name || 'Huércal-Overa'
-        const fd = extractFromDesc(description)
+        const fd = extractFromDesc(fullText)
         const bedrooms = Number(prop.rooms || 0) || fd.bedrooms
         const bathrooms = Number(prop.bathrooms || 0) || fd.bathrooms
         const area = Number(prop.size || prop.constructedArea || 0) || fd.area
-        return { id: String(ad.id), title, description, type, price, bedrooms, bathrooms, area, location, images, image: images[0] || '' }
+        return { id: String(ad.id), title, description: fullText, type, price, bedrooms, bathrooms, area, location, images, image: images[0] || '' }
       })
       .filter((p: any) => p.price > 0)
   } catch { return [] }
