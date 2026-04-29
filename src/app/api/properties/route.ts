@@ -11,9 +11,9 @@ function extractFromDesc(desc: string) {
   const baths = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
   const size = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
   return {
-    rooms: rooms ? Number(rooms) : 0,
+    bedrooms: rooms ? Number(rooms) : 0,
     bathrooms: baths ? Number(baths) : 0,
-    size: size ? Number(size) : 0,
+    area: size ? Number(size) : 0,
   }
 }
 
@@ -36,23 +36,24 @@ function mapAd(ad: any) {
     '9':'Trastero','10':'Nave','11':'Finca','12':'Edificio'
   }
   const prop = ad.property || {}
-  const property_type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
+  const type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
   const location: string = prop.address?.location?.name || 'Huércal-Overa'
 
   const fromDesc = extractFromDesc(description)
-  const rooms = Number(prop.rooms || 0) || fromDesc.rooms
+  // PropertyCard espera: bedrooms, bathrooms, area
+  const bedrooms = Number(prop.rooms || 0) || fromDesc.bedrooms
   const bathrooms = Number(prop.bathrooms || 0) || fromDesc.bathrooms
-  const size = Number(prop.size || prop.constructedArea || 0) || fromDesc.size
+  const area = Number(prop.size || prop.constructedArea || 0) || fromDesc.area
 
   return {
     id: String(ad.id),
     title,
     description,
-    property_type,
+    type,
     price,
-    rooms,
+    bedrooms,
     bathrooms,
-    size,
+    area,
     location,
     images,
     image: images[0] || '',
@@ -77,4 +78,4 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
-    }
+      }
