@@ -1,56 +1,89 @@
 import { NextResponse } from 'next/server'
 
-const CRM_API_URL = 'https://crm.inmobiliariaelite.es/api/'
-const CRM_API_TOKEN = 'Elite_SuperSecretToken_2026'
+const CRM_URL = 'https://crm.inmobiliariaelite.es/api/'
+const CRM_TOKEN = 'Elite_SuperSecretToken_2026'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function getSpanishComment(ad: any): string {
-  const comments = ad.comments?.adComments
-  if (!comments || !Array.isArray(comments)) return ''
-  // language "0" = español en Idealista
-  const esComment = comments.find((c: any) => String(c.language) === '0')
-  return (esComment || comments[0])?.propertyComment || ''
+function extractFromDesc(desc: string) {
+  const rooms = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
+  const baths = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
+  const size = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
+  return {
+    rooms: rooms ? Number(rooms) : 0,
+    bathrooms: baths ? Number(baths) : 0,
+    size: size ? Number(size) : 0,
+  }
 }
 
-function mapProperty(ad: any) {
-  const comment = getSpanishComment(ad)
-  const title = comment.split('\n')[0]?.trim()?.substring(0, 80) || 'Propiedad en venta'
+function isSpanish(text: string) {
+  if (!text) return false
+  if (/[\u0400-\u04FF]/.test(text)) return false // cirílico (ruso/búlgaro)
+  if (/[\u0102\u0103\u015E\u015F\u021A\u021B]/.test(text)) return false // rumano
+  return true
+}
+
+function mapAd(ad: any) {
+  const fullText: string = ad.comments?.adComments?.[0]?.propertyComment || ''
+  const firstLine = fullText.split('\n')[0]?.trim() || ''
+  const title = firstLine.length > 5 ? firstLine : 'Propiedad en venta'
+  const description = fullText.trim()
+
   const pics = ad.multimedias?.pictures
-  const images = pics ? (Array.isArray(pics) ? pics : [pics]).map((p: any) => p?.multimediaPath || '').filter(Boolean) : []
+  const picArr = Array.isArray(pics) ? pics : pics ? [pics] : []
+  const images: string[] = picArr.map((p: any) => p?.multimediaPath || '').filter(Boolean)
+
   let price = 0
-  if (ad.prices?.byOperation?.SALE?.price) price = Number(ad.prices.byOperation.SALE.price)
-  else if (ad.prices?.byOperation?.RENT?.price) price = Number(ad.prices.byOperation.RENT.price)
+  const byOp = ad.prices?.byOperation
+  if (byOp?.SALE?.price) price = Number(byOp.SALE.price)
+  else if (byOp?.RENT?.price) price = Number(byOp.RENT.price)
+
+  const typeMap: Record<string, string> = {
+    '0': 'Piso', '1': 'Casa', '2': 'Chalet', '3': 'Adosado', '4': 'Ático',
+    '5': 'Local', '6': 'Oficina', '7': 'Terreno', '8': 'Garaje',
+    '9': 'Trastero', '10': 'Nave', '11': 'Finca', '12': 'Edificio'
+  }
   const prop = ad.property || {}
-  const typeMap: Record<string, string> = { '0': 'Piso', '1': 'Casa', '2': 'Chalet', '5': 'Local', '7': 'Terreno', '12': 'Edificio' }
+  const property_type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
+  const location: string = prop.address?.location?.name || 'Huércal-Overa'
+
+  const fromDesc = extractFromDesc(description)
+  const rooms = Number(prop.rooms || 0) || fromDesc.rooms
+  const bathrooms = Number(prop.bathrooms || 0) || fromDesc.bathrooms
+  const size = Number(prop.size || prop.constructedArea || 0) || fromDesc.size
+
   return {
-    id: ad.id || '',
+    id: String(ad.id),
     title,
-    description: comment.substring(0, 500),
-    property_type: typeMap[String(prop.typology || '')] || 'Inmueble',
+    description,
+    property_type,
     price,
-    size: Number(prop.size || 0),
-    rooms: Number(prop.rooms || 0),
-    bathrooms: Number(prop.bathrooms || 0),
-    location: prop.address?.location?.name || 'Huércal-Overa',
+    rooms,
+    bathrooms,
+    size,
+    location,
     images,
-    image: images[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
+    image: images[0] || '',
   }
 }
 
 export async function GET() {
   try {
-    const response = await fetch(`${CRM_API_URL}?get_inmuebles`, {
-      headers: { 'Authorization': `Bearer ${CRM_API_TOKEN}`, 'Content-Type': 'application/json' },
+    const res = await fetch(`${CRM_URL}?get_inmuebles`, {
+      headers: { 'Authorization': `Bearer ${CRM_TOKEN}` },
       cache: 'no-store',
     })
-    if (!response.ok) return NextResponse.json({ success: false, error: `CRM: ${response.status}` }, { status: 500 })
-    const rawData = await response.json()
-    const rawAds = rawData?.ad ? (Array.isArray(rawData.ad) ? rawData.ad : [rawData.ad]) : []
-    const properties = rawAds.map(mapProperty)
-    return NextResponse.json({ success: true, properties, total: properties.length, timestamp: new Date().toISOString() })
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown' }, { status: 500 })
+    if (!res.ok) throw new Error(`CRM ${res.status}`)
+    const raw = await res.json()
+    const ads: any[] = Array.isArray(raw?.ad) ? raw.ad : raw?.ad ? [raw.ad] : []
+
+    const properties = ads
+      .map(mapAd)
+      .filter(p => p.price > 0 && isSpanish(p.title))
+
+    return NextResponse.json({ success: true, properties, total: properties.length })
+  } catch (err) {
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
-}
+    }
