@@ -17,16 +17,10 @@ export const metadata: Metadata = {
 }
 
 function extractFromDesc(desc: string) {
-  const rooms = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
-  const baths = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
-  const size = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
-  return { rooms: rooms ? Number(rooms) : 0, bathrooms: baths ? Number(baths) : 0, size: size ? Number(size) : 0 }
-}
-function isSpanish(text: string) {
-  if (!text) return false
-  if (/[\u0400-\u04FF]/.test(text)) return false
-  if (/[\u0102\u0103\u015E\u015F\u021A\u021B]/.test(text)) return false
-  return true
+  const r = (/([0-9]+)\s*dormitorio/i.exec(desc) || /([0-9]+)\s*habitaci/i.exec(desc))?.[1]
+  const b = /([0-9]+)\s*ba[ñn]o/i.exec(desc)?.[1]
+  const s = (/([0-9]+)\s*m[²2]/i.exec(desc) || /([0-9]+)\s*metros? construido/i.exec(desc))?.[1]
+  return { bedrooms: r ? Number(r) : 0, bathrooms: b ? Number(b) : 0, area: s ? Number(s) : 0 }
 }
 
 async function getFeaturedProperties() {
@@ -50,15 +44,15 @@ async function getFeaturedProperties() {
         const byOp = ad.prices?.byOperation
         const price = byOp?.SALE?.price ? Number(byOp.SALE.price) : byOp?.RENT?.price ? Number(byOp.RENT.price) : 0
         const prop = ad.property || {}
-        const property_type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
+        const type = typeMap[String(prop.typology ?? '')] || 'Inmueble'
         const location: string = prop.address?.location?.name || 'Huércal-Overa'
-        const fromDesc = extractFromDesc(description)
-        const rooms = Number(prop.rooms || 0) || fromDesc.rooms
-        const bathrooms = Number(prop.bathrooms || 0) || fromDesc.bathrooms
-        const size = Number(prop.size || prop.constructedArea || 0) || fromDesc.size
-        return { id: String(ad.id), title, description, property_type, price, rooms, bathrooms, size, location, images, image: images[0] || '' }
+        const fd = extractFromDesc(description)
+        const bedrooms = Number(prop.rooms || 0) || fd.bedrooms
+        const bathrooms = Number(prop.bathrooms || 0) || fd.bathrooms
+        const area = Number(prop.size || prop.constructedArea || 0) || fd.area
+        return { id: String(ad.id), title, description, type, price, bedrooms, bathrooms, area, location, images, image: images[0] || '' }
       })
-      .filter((p: any) => p.price > 0 && isSpanish(p.title))
+      .filter((p: any) => p.price > 0)
       .slice(0, 6)
   } catch { return [] }
 }
@@ -98,7 +92,7 @@ export default async function HomePage() {
       </div></div></section>
 
       <section className="bg-white py-20 lg:py-28"><div className="section-padding"><div className="container-elite">
-        <SectionHeading label="Propiedades destacadas" title="Encuentra tu próximo hogar" description="Selección de nuestras propiedades más atractivas directamente del CRM."/>
+        <SectionHeading label="Propiedades destacadas" title="Encuentra tu próximo hogar" description="Selección de nuestras propiedades más atractivas."/>
         {featured.length > 0 ? (
           <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {featured.map((p: any) => <StaggerItem key={p.id}><PropertyCard {...p}/></StaggerItem>)}
@@ -142,7 +136,7 @@ export default async function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
           <div><SectionHeading label="Contacto" title="Hablemos de tu proyecto" description="Cuéntanos qué necesitas y te contactamos en menos de 24h." centered={false}/>
             <FadeIn delay={0.2}><div className="space-y-6 mt-8">
-              <a href={`tel:${siteConfig.phone}`} className="flex items-center gap-4 group"><div className="w-12 h-12 bg-brand-gold/10 rounded-sm flex items-center justify-center"><Phone size={20} className="text-brand-gold"/></div><div><p className="text-xs text-brand-warm-gray uppercase tracking-wider">Teléfono</p><p className="font-display text-lg font-semibold text-brand-navy">{siteConfig.phoneDisplay}</p></div></a>
+              <a href={`tel:${siteConfig.phone}`} className="flex items-center gap-4"><div className="w-12 h-12 bg-brand-gold/10 rounded-sm flex items-center justify-center"><Phone size={20} className="text-brand-gold"/></div><div><p className="text-xs text-brand-warm-gray uppercase tracking-wider">Teléfono</p><p className="font-display text-lg font-semibold text-brand-navy">{siteConfig.phoneDisplay}</p></div></a>
               <div className="flex items-center gap-4"><div className="w-12 h-12 bg-brand-gold/10 rounded-sm flex items-center justify-center"><MapPin size={20} className="text-brand-gold"/></div><div><p className="text-xs text-brand-warm-gray uppercase tracking-wider">Dirección</p><p className="text-sm text-brand-charcoal">{siteConfig.address.street}</p><p className="text-sm text-brand-charcoal">{siteConfig.address.postalCode} {siteConfig.address.city}, {siteConfig.address.province}</p></div></div>
             </div></FadeIn>
           </div>
@@ -156,4 +150,4 @@ export default async function HomePage() {
 function ServiceIcon({ name }: { name: string }) {
   const icons: Record<string, React.ReactNode> = { Home: <Home size={22} className="text-brand-gold"/>, Search: <Search size={22} className="text-brand-gold"/>, Calculator: <Calculator size={22} className="text-brand-gold"/>, BarChart3: <TrendingUp size={22} className="text-brand-gold"/>, TrendingUp: <TrendingUp size={22} className="text-brand-gold"/>, Megaphone: <Users size={22} className="text-brand-gold"/>, Handshake: <Shield size={22} className="text-brand-gold"/> }
   return <>{icons[name] || <Home size={22} className="text-brand-gold"/>}</>
-  }
+    }
